@@ -11,7 +11,7 @@
     <meta property="og:title" content="LazyGrade — Calculadora Retro de Examen Final" />
     <meta
       property="og:description"
-      content="Calcula la nota necesaria en tu examen final (40%) con notas parciales de 0 a 5 (20% cada una) y temas retro estilo LazyVim."
+      content="Calcula la nota necesaria en tu Examen final (40%) con notas parciales de 0 a 5 (20% cada una) y temas retro estilo LazyVim."
     />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -21,9 +21,389 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./app.js"></script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="crt-overlay" class="crt-overlay hidden" aria-hidden="true"></div>
+
+    <!-- Top Bar (3-zone contract) -->
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a href="#calculadora" class="brand">LazyGrade</a>
+
+        <nav class="topnav" aria-label="Navegación principal">
+          <a href="#calculadora" class="topnav-link active">Calculadora</a>
+          <a href="#escenarios" class="topnav-link">Escenarios</a>
+          <button type="button" id="btn-nav-whichkey" class="topnav-link">Atajos</button>
+        </nav>
+
+        <button type="button" id="btn-open-themes" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+          </svg>
+          <span id="theme-btn-label">Tema: Tokyo Night</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="hero">
+        <div>
+          <h1 class="hero-title">
+            Calcula cuánto necesitas en el Examen final para aprobar tu materia
+          </h1>
+          <p class="hero-sub">
+            Ingresa tus tres notas parciales de <span class="mono">0.00 a 5.00</span>
+            (<span class="mono">pd1, pd2, pd3</span> · 20% cada una) para conocer la nota
+            exacta requerida en el <span class="mono" style="color: var(--accent)">Examen (40%)</span>.
+          </p>
+        </div>
+
+        <div class="hero-meta">
+          <span>Escala 0.00 – 5.00</span>
+          <span aria-hidden="true">·</span>
+          <span>Cortes 60% + Examen 40%</span>
+          <span aria-hidden="true">·</span>
+          <span>Guardado local automático</span>
+        </div>
+      </section>
+
+      <!-- LazyVim Window Frame -->
+      <section id="calculadora" class="nvim-window">
+        <div class="buffer-bar">
+          <div id="buffer-tabs" class="buffer-tabs"></div>
+          <span class="mode-badge" data-vim-mode>NORMAL</span>
+        </div>
+
+        <div class="nvim-body">
+          <!-- Sidebar -->
+          <aside class="sidebar" aria-label="Lista de materias">
+            <div class="sidebar-header">
+              <span>Materias guardadas</span>
+              <span id="course-count" class="mono">1</span>
+            </div>
+            <div id="course-list" class="course-list"></div>
+            <button type="button" id="btn-sidebar-add" class="btn-sidebar-add">
+              <span>+ Agregar materia</span>
+            </button>
+          </aside>
+
+          <!-- Split Editor -->
+          <div class="editor-split">
+            <!-- Left Zone: Inputs -->
+            <div class="inputs-pane">
+              <div class="pane-header">
+                <div id="course-title-wrap" class="course-title-wrap">
+                  <h2 id="course-title" class="course-title">Materia 1</h2>
+                  <button type="button" id="btn-rename" class="link-action">Renombrar</button>
+                </div>
+
+                <form id="rename-form" class="rename-form hidden">
+                  <input
+                    id="rename-input"
+                    type="text"
+                    class="rename-input"
+                    aria-label="Nombre de la materia"
+                  />
+                  <button type="submit" class="btn-primary" style="height: 36px">Guardar</button>
+                </form>
+
+                <div class="pane-actions">
+                  <button type="button" id="btn-example" class="btn-secondary">Ejemplo</button>
+                  <button type="button" id="btn-reset" class="btn-secondary">Limpiar</button>
+                </div>
+              </div>
+
+              <div>
+                <!-- Line 1: pd1 -->
+                <div id="line-pd1" class="editor-line">
+                  <div class="line-gutter" aria-hidden="true">1</div>
+                  <div class="line-content">
+                    <div class="line-top">
+                      <div>
+                        <div class="var-label">
+                          <label for="input-pd1" class="var-name">pd1</label>
+                          <span aria-hidden="true" style="color: var(--text-gutter)">·</span>
+                          <span>Primera nota parcial</span>
+                          <span aria-hidden="true" style="color: var(--text-gutter)">·</span>
+                          <span class="mono" style="font-size: 0.75rem; color: var(--text-muted)">20%</span>
+                        </div>
+                        <p id="contrib-pd1" class="var-sub">Aporte actual: +0.00 pts de 1.00</p>
+                      </div>
+                      <div class="stepper-group">
+                        <button type="button" class="step-btn" data-step-key="pd1" data-step-delta="-0.1" aria-label="Restar 0.1 a pd1">−</button>
+                        <input id="input-pd1" type="text" inputmode="decimal" value="0.00" class="grade-input" aria-label="Nota pd1 de 0 a 5" />
+                        <button type="button" class="step-btn" data-step-key="pd1" data-step-delta="0.1" aria-label="Sumar 0.1 a pd1">+</button>
+                      </div>
+                    </div>
+                    <div>
+                      <input id="slider-pd1" type="range" min="0" max="5" step="0.05" value="0" class="lazy-slider" aria-label="Deslizador de nota pd1" />
+                      <div class="slider-ticks"><span>0.0</span><span>1.0</span><span>2.0</span><span>3.0</span><span>4.0</span><span>5.0</span></div>
+                    </div>
+                    <p id="warn-pd1" class="range-warning hidden">Escala válida de 0.00 a 5.00; el valor se ajustó al límite permitido.</p>
+                  </div>
+                </div>
+
+                <!-- Line 2: pd2 -->
+                <div id="line-pd2" class="editor-line">
+                  <div class="line-gutter" aria-hidden="true">2</div>
+                  <div class="line-content">
+                    <div class="line-top">
+                      <div>
+                        <div class="var-label">
+                          <label for="input-pd2" class="var-name">pd2</label>
+                          <span aria-hidden="true" style="color: var(--text-gutter)">·</span>
+                          <span>Segunda nota parcial</span>
+                          <span aria-hidden="true" style="color: var(--text-gutter)">·</span>
+                          <span class="mono" style="font-size: 0.75rem; color: var(--text-muted)">20%</span>
+                        </div>
+                        <p id="contrib-pd2" class="var-sub">Aporte actual: +0.00 pts de 1.00</p>
+                      </div>
+                      <div class="stepper-group">
+                        <button type="button" class="step-btn" data-step-key="pd2" data-step-delta="-0.1" aria-label="Restar 0.1 a pd2">−</button>
+                        <input id="input-pd2" type="text" inputmode="decimal" value="0.00" class="grade-input" aria-label="Nota pd2 de 0 a 5" />
+                        <button type="button" class="step-btn" data-step-key="pd2" data-step-delta="0.1" aria-label="Sumar 0.1 a pd2">+</button>
+                      </div>
+                    </div>
+                    <div>
+                      <input id="slider-pd2" type="range" min="0" max="5" step="0.05" value="0" class="lazy-slider" aria-label="Deslizador de nota pd2" />
+                      <div class="slider-ticks"><span>0.0</span><span>1.0</span><span>2.0</span><span>3.0</span><span>4.0</span><span>5.0</span></div>
+                    </div>
+                    <p id="warn-pd2" class="range-warning hidden">Escala válida de 0.00 a 5.00; el valor se ajustó al límite permitido.</p>
+                  </div>
+                </div>
+
+                <!-- Line 3: pd3 -->
+                <div id="line-pd3" class="editor-line">
+                  <div class="line-gutter" aria-hidden="true">3</div>
+                  <div class="line-content">
+                    <div class="line-top">
+                      <div>
+                        <div class="var-label">
+                          <label for="input-pd3" class="var-name">pd3</label>
+                          <span aria-hidden="true" style="color: var(--text-gutter)">·</span>
+                          <span>Tercera nota parcial</span>
+                          <span aria-hidden="true" style="color: var(--text-gutter)">·</span>
+                          <span class="mono" style="font-size: 0.75rem; color: var(--text-muted)">20%</span>
+                        </div>
+                        <p id="contrib-pd3" class="var-sub">Aporte actual: +0.00 pts de 1.00</p>
+                      </div>
+                      <div class="stepper-group">
+                        <button type="button" class="step-btn" data-step-key="pd3" data-step-delta="-0.1" aria-label="Restar 0.1 a pd3">−</button>
+                        <input id="input-pd3" type="text" inputmode="decimal" value="0.00" class="grade-input" aria-label="Nota pd3 de 0 a 5" />
+                        <button type="button" class="step-btn" data-step-key="pd3" data-step-delta="0.1" aria-label="Sumar 0.1 a pd3">+</button>
+                      </div>
+                    </div>
+                    <div>
+                      <input id="slider-pd3" type="range" min="0" max="5" step="0.05" value="0" class="lazy-slider" aria-label="Deslizador de nota pd3" />
+                      <div class="slider-ticks"><span>0.0</span><span>1.0</span><span>2.0</span><span>3.0</span><span>4.0</span><span>5.0</span></div>
+                    </div>
+                    <p id="warn-pd3" class="range-warning hidden">Escala válida de 0.00 a 5.00; el valor se ajustó al límite permitido.</p>
+                  </div>
+                </div>
+
+                <!-- Line 4: Target -->
+                <div id="line-target" class="editor-line">
+                  <div class="line-gutter" aria-hidden="true">4</div>
+                  <div class="line-content">
+                    <div class="line-top">
+                      <div>
+                        <div class="var-label">
+                          <label for="input-target" class="var-name" style="color: var(--secondary)">meta</label>
+                          <span aria-hidden="true" style="color: var(--text-gutter)">·</span>
+                          <span>Nota mínima para pasar</span>
+                        </div>
+                        <p class="var-sub" style="font-family: var(--font-sans)">
+                          Por defecto 3.00 sobre 5.00; puedes ajustarla según tu objetivo.
+                        </p>
+                      </div>
+                      <input id="input-target" type="text" inputmode="decimal" value="3.00" class="grade-input" aria-label="Nota mínima objetivo para aprobar" />
+                    </div>
+                    <div class="presets-row">
+                      <button type="button" class="preset-btn active" data-preset="3.0">3.0 · Mínimo</button>
+                      <button type="button" class="preset-btn" data-preset="3.5">3.5</button>
+                      <button type="button" class="preset-btn" data-preset="4.0">4.0</button>
+                      <button type="button" class="preset-btn" data-preset="4.5">4.5</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Zone: Result -->
+            <div class="result-pane">
+              <div style="display: flex; flex-direction: column; gap: 20px">
+                <div class="result-header">
+                  <div>
+                    <p class="result-kicker">Resultado requerido en el Examen (40%)</p>
+                    <h3 class="result-title">
+                      Nota necesaria en <span class="mono" style="color: var(--accent)">Examen</span>
+                    </h3>
+                  </div>
+                  <button type="button" id="btn-copy" class="btn-secondary">Copiar</button>
+                </div>
+
+                <div id="result-box" class="result-box">
+                  <div class="result-score-row">
+                    <div>
+                      <span id="result-score" class="result-score">7.50</span>
+                      <span class="result-scale">/ 5.00</span>
+                    </div>
+                    <div id="result-status" class="result-status">
+                      <span id="result-status-text">Fuera de rango</span>
+                    </div>
+                  </div>
+                  <p id="result-detail" class="result-detail"></p>
+                </div>
+
+                <div class="metrics-grid">
+                  <div class="metric-cell">
+                    <div class="metric-label">Acumulado (60%)</div>
+                    <div id="metric-acc" class="metric-value">0.00<span class="metric-unit">/ 3.00</span></div>
+                  </div>
+                  <div class="metric-cell">
+                    <div class="metric-label">Puntos faltantes</div>
+                    <div id="metric-missing" class="metric-value">3.00<span class="metric-unit">pts</span></div>
+                  </div>
+                  <div class="metric-cell">
+                    <div class="metric-label">Mínimo (Examen 0.00)</div>
+                    <div id="metric-min" class="metric-value">0.00</div>
+                  </div>
+                  <div class="metric-cell">
+                    <div class="metric-label">Máximo (Examen 5.00)</div>
+                    <div id="metric-max" class="metric-value">2.00</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="progress-wrap">
+                <div class="progress-labels">
+                  <span>Progreso del 60% parcial</span>
+                  <span id="progress-pct">0% obtenido</span>
+                </div>
+                <div class="progress-track">
+                  <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lualine Statusbar -->
+        <div class="lualine">
+          <div class="lualine-left">
+            <span class="mode-badge" data-vim-mode>NORMAL</span>
+            <span id="lualine-file" style="color: var(--text-primary)">materia_1.grd</span>
+            <span aria-hidden="true">·</span>
+            <span id="lualine-acc">Acum: 0.00 / 3.00</span>
+          </div>
+          <div class="lualine-right">
+            <button type="button" id="lualine-theme-cmd" class="lualine-btn" style="color: var(--cyan)">:colorscheme tokyonight-storm</button>
+            <button type="button" id="lualine-whichkey" class="lualine-btn" style="color: var(--text-muted)">Atajos (?)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scenarios Table -->
+      <section id="escenarios" class="scenarios-card">
+        <div class="scenarios-header">
+          <div>
+            <h2 class="scenarios-title">Escenarios de nota final objetivo</h2>
+            <p class="scenarios-sub">
+              Haz clic en cualquier fila para fijar esa meta como objetivo en la calculadora.
+            </p>
+          </div>
+          <span id="scenarios-acc-label" class="mono" style="font-size: 0.75rem; color: var(--text-muted)">
+            Acumulado actual: 0.00 / 3.00
+          </span>
+        </div>
+
+        <div class="table-scroll">
+          <table class="scenarios-table">
+            <thead>
+              <tr>
+                <th>Objetivo</th>
+                <th class="text-right">Meta definitiva</th>
+                <th class="text-right">Nota requerida en Examen (40%)</th>
+                <th class="text-right">Viabilidad</th>
+              </tr>
+            </thead>
+            <tbody id="scenarios-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Telescope Theme Modal -->
+    <div id="theme-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="telescope-title">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h2 id="telescope-title" class="modal-title">
+            <span style="color: var(--accent)">:Telescope colorscheme</span> · Selector de Temas
+          </h2>
+          <button type="button" id="btn-close-themes" class="icon-btn" aria-label="Cerrar selector de temas">✕</button>
+        </div>
+
+        <div class="telescope-search-wrap">
+          <span class="mono" style="color: var(--accent)">&gt;</span>
+          <input
+            id="theme-search"
+            type="text"
+            class="telescope-search"
+            placeholder="Filtrar tema (gruvbox, tokyonight, amber, nord...)"
+            aria-label="Filtrar temas de colores"
+          />
+        </div>
+
+        <div id="theme-list" class="theme-list"></div>
+
+        <div class="modal-footer">
+          <button type="button" id="btn-crt-toggle" class="btn-secondary">Efecto CRT retro: Desactivado</button>
+          <span>↑/↓ navegar · Enter aplicar · Esc cerrar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Which-Key Shortcuts Modal -->
+    <div id="whichkey-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="whichkey-title">
+      <div class="modal-panel narrow">
+        <div class="modal-header">
+          <h2 id="whichkey-title" class="modal-title">Atajos de teclado LazyVim</h2>
+          <button type="button" id="btn-close-whichkey" class="icon-btn" aria-label="Cerrar ventana de atajos">✕</button>
+        </div>
+
+        <div>
+          <div class="shortcut-row">
+            <span>Enfocar campo de nota pd1, pd2 o pd3 (en modo NORMAL)</span>
+            <kbd class="kbd-chip">1 / 2 / 3</kbd>
+          </div>
+          <div class="shortcut-row">
+            <span>Abrir selector de temas Telescope (:colorscheme)</span>
+            <kbd class="kbd-chip">t</kbd>
+          </div>
+          <div class="shortcut-row">
+            <span>Reiniciar notas de la materia activa a 0.00</span>
+            <kbd class="kbd-chip">r</kbd>
+          </div>
+          <div class="shortcut-row">
+            <span>Mostrar u ocultar esta guía de atajos Which-Key</span>
+            <kbd class="kbd-chip">?</kbd>
+          </div>
+          <div class="shortcut-row">
+            <span>Salir del modo INSERT a NORMAL o cerrar ventana</span>
+            <kbd class="kbd-chip">Esc</kbd>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <span>Fórmula aplicada: Definitiva = pd1(0.20) + pd2(0.20) + pd3(0.20) + Examen(0.40)</span>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
