@@ -1,0 +1,6 @@
+{
+  "name": "LazyGrade",
+  "description": "Calculadora retro estilo LazyVim con temas de colores para calcular la nota necesaria en el Examen final (40%) a partir de pd1, pd2 y pd3 (20% cada una).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
