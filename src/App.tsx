@@ -28,28 +28,19 @@ import {
 } from './utils/calculations';
 
 const STORAGE_KEYS = {
-  courses: 'lazygrade_courses_v1',
-  activeCourseId: 'lazygrade_active_course_v1',
+  courses: 'lazygrade_courses_v2',
+  activeCourseId: 'lazygrade_active_course_v2',
   themeId: 'lazygrade_theme_v1',
   scanlines: 'lazygrade_scanlines_v1',
 };
 
 const INITIAL_COURSES: CourseBuffer[] = [
   {
-    id: 'calculo-diferencial',
-    name: 'Cálculo Diferencial',
-    pd1: 3.2,
-    pd2: 2.8,
-    pd3: 3.5,
-    target: 3.0,
-    updatedAt: Date.now(),
-  },
-  {
-    id: 'estructuras-datos',
-    name: 'Estructuras de Datos',
-    pd1: 4.1,
-    pd2: 3.9,
-    pd3: 4.2,
+    id: 'materia-1',
+    name: 'Materia 1',
+    pd1: 0,
+    pd2: 0,
+    pd3: 0,
     target: 3.0,
     updatedAt: Date.now(),
   },
