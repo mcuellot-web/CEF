@@ -1074,9 +1074,15 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function init() {
     applyTheme();
     renderFullWorkspace();
     bindEvents();
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
