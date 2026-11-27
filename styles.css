@@ -1087,6 +1087,116 @@ input[type='range'].lazy-slider::-moz-range-thumb {
   white-space: nowrap;
 }
 
+/* Vim Cursorline & Active Row */
+.editor-line.cursor-active {
+  background-color: var(--bg-elevated);
+}
+
+.editor-line.cursor-active .line-gutter {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Segmented Weight Breakdown Bar (out of 5.00) */
+.weight-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weight-bar-track {
+  height: 12px;
+  width: 100%;
+  border-radius: 2px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-canvas);
+  display: flex;
+  overflow: hidden;
+}
+
+.weight-seg {
+  height: 100%;
+  transition: width 160ms ease;
+}
+
+.weight-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.weight-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.weight-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  display: inline-block;
+}
+
+/* Interactive Vim Command Line (:) */
+.cmdline-bar {
+  padding: 6px 12px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  min-height: 36px;
+}
+
+.cmdline-trigger {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 2px 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.cmdline-trigger:hover {
+  color: var(--text-primary);
+}
+
+.cmdline-form {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmdline-input {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.cmdline-feedback {
+  color: var(--status-ok);
+  white-space: nowrap;
+}
+
+.cmdline-feedback.error {
+  color: var(--status-danger);
+}
+
 /* Focus Accessibility */
 button:focus-visible,
 a:focus-visible,

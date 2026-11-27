@@ -163,6 +163,8 @@
     {label: 'Nota perfecta', targetGrade: 5.0},
   ];
 
+  var LINE_KEYS = ['pd1', 'pd2', 'pd3', 'target'];
+
   function createDefaultCourses() {
     return [
       {
@@ -199,13 +201,16 @@
     courses: loadCourses(),
     activeCourseId: loadString(STORAGE_KEYS.activeCourseId, 'materia-1'),
     themeId: loadString(STORAGE_KEYS.themeId, 'tokyonight'),
+    previewThemeBeforeModal: null,
     scanlines: loadString(STORAGE_KEYS.scanlines, 'false') === 'true',
     vimMode: 'NORMAL',
+    cursorLine: 0,
     isRenaming: false,
     themeQuery: '',
     highlightedThemeIdx: 0,
     isThemeModalOpen: false,
     isWhichKeyOpen: false,
+    isCmdlineOpen: false,
   };
 
   function getActiveCourse() {
@@ -216,9 +221,9 @@
     return state.courses[0];
   }
 
-  function getActiveTheme() {
+  function getThemeById(id) {
     for (var i = 0; i < THEMES.length; i++) {
-      if (THEMES[i].id === state.themeId) return THEMES[i];
+      if (THEMES[i].id === id) return THEMES[i];
     }
     return THEMES[0];
   }
@@ -346,8 +351,8 @@
     };
   }
 
-  function applyTheme() {
-    var theme = getActiveTheme();
+  function applyTheme(overrideThemeId) {
+    var theme = getThemeById(overrideThemeId || state.themeId);
     var c = theme.colors;
     var root = document.documentElement;
     root.style.setProperty('--bg-canvas', c.bgCanvas);
@@ -385,16 +390,35 @@
     }
   }
 
+  function updateCursorLineHighlight() {
+    for (var i = 0; i < LINE_KEYS.length; i++) {
+      var lineEl = document.getElementById('line-' + LINE_KEYS[i]);
+      if (lineEl) {
+        lineEl.classList.toggle('cursor-active', i === state.cursorLine);
+      }
+    }
+  }
+
+  function showCommandFeedback(msg, isError) {
+    var fb = document.getElementById('cmdline-feedback');
+    if (!fb) return;
+    fb.textContent = msg;
+    fb.classList.toggle('error', Boolean(isError));
+    fb.classList.remove('hidden');
+    clearTimeout(showCommandFeedback._timer);
+    showCommandFeedback._timer = setTimeout(function () {
+      fb.classList.add('hidden');
+    }, 3200);
+  }
+
   function updateResultAndScenarios() {
     var course = getActiveCourse();
     var calc = computeCalc(course);
 
-    // Update partial contribution subtitles
     document.getElementById('contrib-pd1').textContent = 'Aporte actual: +' + fmt(calc.w1) + ' pts de 1.00';
     document.getElementById('contrib-pd2').textContent = 'Aporte actual: +' + fmt(calc.w2) + ' pts de 1.00';
     document.getElementById('contrib-pd3').textContent = 'Aporte actual: +' + fmt(calc.w3) + ' pts de 1.00';
 
-    // Update focal result box
     var resultBox = document.getElementById('result-box');
     resultBox.style.borderColor = calc.colorVar;
 
@@ -405,10 +429,8 @@
     var statusWrap = document.getElementById('result-status');
     statusWrap.style.color = calc.colorVar;
     document.getElementById('result-status-text').textContent = calc.statusLabel;
-
     document.getElementById('result-detail').textContent = calc.statusDetail;
 
-    // 4-metric breakdown
     document.getElementById('metric-acc').innerHTML =
       fmt(calc.acc) + '<span class="metric-unit">/ 3.00</span>';
     document.getElementById('metric-missing').innerHTML =
@@ -420,23 +442,36 @@
     maxEl.style.color =
       calc.maxFinal >= course.target ? 'var(--status-ok)' : 'var(--status-danger)';
 
-    // Progress bar
-    var pct = Math.min(100, Math.max(0, Math.round(calc.accPct)));
-    document.getElementById('progress-pct').textContent = pct + '% obtenido';
-    document.getElementById('progress-fill').style.width = pct + '%';
+    // Segmented visual weight bar (out of 5.00 scale = 100%)
+    var pctPartial = Math.min(100, Math.max(0, Math.round(calc.accPct)));
+    document.getElementById('progress-pct').textContent = pctPartial + '% parcial';
 
-    // Lualine
+    var seg1Pct = (calc.w1 / 5.0) * 100;
+    var seg2Pct = (calc.w2 / 5.0) * 100;
+    var seg3Pct = (calc.w3 / 5.0) * 100;
+    var neededExamPts = Math.max(0, Math.min(5.0, calc.rawNeeded)) * 0.4;
+    var segExamPct = Math.min(100 - (seg1Pct + seg2Pct + seg3Pct), (neededExamPts / 5.0) * 100);
+
+    document.getElementById('seg-pd1').style.width = seg1Pct.toFixed(2) + '%';
+    document.getElementById('seg-pd2').style.width = seg2Pct.toFixed(2) + '%';
+    document.getElementById('seg-pd3').style.width = seg3Pct.toFixed(2) + '%';
+    document.getElementById('seg-exam').style.width = Math.max(0, segExamPct).toFixed(2) + '%';
+
+    document.getElementById('leg-pd1').textContent = 'pd1: +' + fmt(calc.w1);
+    document.getElementById('leg-pd2').textContent = 'pd2: +' + fmt(calc.w2);
+    document.getElementById('leg-pd3').textContent = 'pd3: +' + fmt(calc.w3);
+    document.getElementById('leg-exam').textContent =
+      'Examen: +' + fmt(neededExamPts);
+
     document.getElementById('lualine-file').textContent = slugify(course.name);
     document.getElementById('lualine-acc').textContent = 'Acum: ' + fmt(calc.acc) + ' / 3.00';
 
-    // Target presets active highlight
     var presetBtns = document.querySelectorAll('[data-preset]');
     for (var p = 0; p < presetBtns.length; p++) {
       var pv = Number(presetBtns[p].getAttribute('data-preset'));
       presetBtns[p].classList.toggle('active', Math.abs(course.target - pv) < 0.001);
     }
 
-    // Sidebar course meta update
     var sidebarMetas = document.querySelectorAll('[data-course-meta]');
     for (var s = 0; s < sidebarMetas.length; s++) {
       var cid = sidebarMetas[s].getAttribute('data-course-meta');
@@ -449,7 +484,6 @@
       }
     }
 
-    // Scenarios table
     document.getElementById('scenarios-acc-label').textContent =
       'Acumulado actual: ' + fmt(calc.acc) + ' / 3.00';
 
@@ -506,7 +540,6 @@
   function renderCourseNavigation() {
     var course = getActiveCourse();
 
-    // Buffer tabs
     var tabsEl = document.getElementById('buffer-tabs');
     tabsEl.innerHTML =
       state.courses
@@ -527,7 +560,6 @@
         .join('') +
       '<button type="button" id="btn-tab-new" class="buffer-add">+ Nueva materia</button>';
 
-    // Sidebar courses
     document.getElementById('course-count').textContent = String(state.courses.length);
     var listEl = document.getElementById('course-list');
     listEl.innerHTML = state.courses
@@ -565,9 +597,7 @@
       })
       .join('');
 
-    // Course header title or rename form
-    var titleEl = document.getElementById('course-title');
-    titleEl.textContent = course.name;
+    document.getElementById('course-title').textContent = course.name;
   }
 
   function syncInputsFromCourse() {
@@ -589,6 +619,7 @@
   function renderFullWorkspace() {
     renderCourseNavigation();
     syncInputsFromCourse();
+    updateCursorLineHighlight();
     updateResultAndScenarios();
   }
 
@@ -600,11 +631,12 @@
     renderFullWorkspace();
   }
 
-  function createCourse() {
+  function createCourse(customName) {
     var nextNum = state.courses.length + 1;
+    var name = customName && customName.trim() ? customName.trim() : 'Materia ' + nextNum;
     var newCourse = {
       id: 'materia-' + Date.now(),
-      name: 'Materia ' + nextNum,
+      name: name,
       pd1: 0,
       pd2: 0,
       pd3: 0,
@@ -614,7 +646,7 @@
     state.activeCourseId = newCourse.id;
     saveState();
     renderFullWorkspace();
-    startRename();
+    if (!customName) startRename();
   }
 
   function deleteCourse(id) {
@@ -673,6 +705,7 @@
     saveState();
     syncInputsFromCourse();
     updateResultAndScenarios();
+    showCommandFeedback('Notas reiniciadas a 0.00', false);
   }
 
   function loadExampleGrades() {
@@ -684,15 +717,17 @@
     saveState();
     syncInputsFromCourse();
     updateResultAndScenarios();
+    showCommandFeedback('Ejemplo cargado (2.60 / 3.10 / 2.90)', false);
   }
 
-  // Telescope Theme Modal
+  // Telescope Theme Modal with Live Preview
   function getFilteredThemes() {
     var q = state.themeQuery.trim().toLowerCase();
     if (!q) return THEMES;
     return THEMES.filter(function (t) {
       return (
         t.name.toLowerCase().indexOf(q) !== -1 ||
+        t.id.toLowerCase().indexOf(q) !== -1 ||
         t.vimCommand.toLowerCase().indexOf(q) !== -1 ||
         t.description.toLowerCase().indexOf(q) !== -1
       );
@@ -762,8 +797,16 @@
       .join('');
   }
 
+  function previewHighlightedTheme() {
+    var filtered = getFilteredThemes();
+    if (filtered[state.highlightedThemeIdx]) {
+      applyTheme(filtered[state.highlightedThemeIdx].id);
+    }
+  }
+
   function openThemeModal() {
     state.isThemeModalOpen = true;
+    state.previewThemeBeforeModal = state.themeId;
     state.themeQuery = '';
     var idx = 0;
     for (var i = 0; i < THEMES.length; i++) {
@@ -779,9 +822,22 @@
     search.focus();
   }
 
-  function closeThemeModal() {
+  function closeThemeModal(revertPreview) {
     state.isThemeModalOpen = false;
+    if (revertPreview && state.previewThemeBeforeModal) {
+      applyTheme(state.previewThemeBeforeModal);
+    }
+    state.previewThemeBeforeModal = null;
     document.getElementById('theme-modal').classList.add('hidden');
+  }
+
+  function commitTheme(themeId) {
+    state.themeId = themeId;
+    state.previewThemeBeforeModal = null;
+    saveState();
+    applyTheme();
+    closeThemeModal(false);
+    showCommandFeedback('Tema aplicado: ' + getThemeById(themeId).name, false);
   }
 
   function openWhichKeyModal() {
@@ -794,8 +850,85 @@
     document.getElementById('whichkey-modal').classList.add('hidden');
   }
 
+  // Interactive Vim Command Line (:)
+  function openCmdline() {
+    state.isCmdlineOpen = true;
+    document.getElementById('cmdline-trigger').classList.add('hidden');
+    document.getElementById('cmdline-form').classList.remove('hidden');
+    var input = document.getElementById('cmdline-input');
+    input.value = '';
+    input.focus();
+  }
+
+  function closeCmdline() {
+    state.isCmdlineOpen = false;
+    document.getElementById('cmdline-form').classList.add('hidden');
+    document.getElementById('cmdline-trigger').classList.remove('hidden');
+  }
+
+  function executeVimCommand(raw) {
+    var trimmed = raw.trim().replace(/^:/, '');
+    closeCmdline();
+    if (!trimmed) return;
+
+    var parts = trimmed.split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var arg = parts.slice(1).join(' ');
+
+    if (cmd === 'colorscheme' || cmd === 'colo' || cmd === 'theme' || cmd === 'tema') {
+      if (!arg) {
+        openThemeModal();
+        return;
+      }
+      var q = arg.toLowerCase();
+      var match = null;
+      for (var i = 0; i < THEMES.length; i++) {
+        if (
+          THEMES[i].id.toLowerCase().indexOf(q) !== -1 ||
+          THEMES[i].name.toLowerCase().indexOf(q) !== -1
+        ) {
+          match = THEMES[i];
+          break;
+        }
+      }
+      if (match) {
+        commitTheme(match.id);
+      } else {
+        showCommandFeedback('Tema no encontrado: ' + arg, true);
+      }
+    } else if (cmd === 'meta' || cmd === 'target') {
+      var parsed = parseGrade(arg);
+      if (parsed === null || arg === '') {
+        showCommandFeedback('Uso: :meta 3.5', true);
+        return;
+      }
+      var clamped = clampGrade(parsed);
+      getActiveCourse().target = clamped;
+      saveState();
+      document.getElementById('input-target').value = fmt(clamped);
+      updateResultAndScenarios();
+      showCommandFeedback('Meta actualizada a ' + fmt(clamped), false);
+    } else if (cmd === 'new' || cmd === 'nueva') {
+      createCourse(arg);
+      showCommandFeedback('Materia creada: ' + getActiveCourse().name, false);
+    } else if (cmd === 'clear' || cmd === 'reset' || cmd === 'limpiar') {
+      resetActiveGrades();
+    } else if (cmd === 'crt') {
+      state.scanlines = !state.scanlines;
+      saveState();
+      applyTheme();
+      showCommandFeedback(
+        'Efecto CRT: ' + (state.scanlines ? 'Activado' : 'Desactivado'),
+        false
+      );
+    } else if (cmd === 'help' || cmd === 'ayuda') {
+      openWhichKeyModal();
+    } else {
+      showCommandFeedback('Comando desconocido: :' + cmd + ' (usa :help)', true);
+    }
+  }
+
   function bindEvents() {
-    // Delegate buffer tab and sidebar clicks
     document.addEventListener('click', function (e) {
       var target = e.target;
       var selectBtn = target.closest('[data-select-course]');
@@ -822,6 +955,7 @@
         saveState();
         document.getElementById('input-target').value = fmt(val);
         updateResultAndScenarios();
+        showCommandFeedback('Meta fijada en ' + fmt(val), false);
         return;
       }
 
@@ -832,6 +966,7 @@
         saveState();
         document.getElementById('input-target').value = fmt(sVal);
         updateResultAndScenarios();
+        showCommandFeedback('Meta fijada en ' + fmt(sVal), false);
         return;
       }
 
@@ -849,21 +984,31 @@
 
       var themeBtn = target.closest('[data-theme-id]');
       if (themeBtn) {
-        state.themeId = themeBtn.getAttribute('data-theme-id');
-        saveState();
-        applyTheme();
-        closeThemeModal();
+        commitTheme(themeBtn.getAttribute('data-theme-id'));
       }
     });
 
-    // Grade inputs & sliders
-    ['pd1', 'pd2', 'pd3'].forEach(function (key) {
+    // Live Telescope hover preview
+    document.getElementById('theme-list').addEventListener('mouseover', function (e) {
+      var option = e.target.closest('[data-theme-idx]');
+      if (!option) return;
+      var idx = Number(option.getAttribute('data-theme-idx'));
+      if (!isNaN(idx) && idx !== state.highlightedThemeIdx) {
+        state.highlightedThemeIdx = idx;
+        renderThemeList();
+        previewHighlightedTheme();
+      }
+    });
+
+    ['pd1', 'pd2', 'pd3'].forEach(function (key, idx) {
       var input = document.getElementById('input-' + key);
       var slider = document.getElementById('slider-' + key);
       var line = document.getElementById('line-' + key);
       var warn = document.getElementById('warn-' + key);
 
       input.addEventListener('focus', function () {
+        state.cursorLine = idx;
+        updateCursorLineHighlight();
         setVimMode('INSERT');
         line.classList.add('focused');
       });
@@ -896,6 +1041,8 @@
       });
 
       slider.addEventListener('input', function () {
+        state.cursorLine = idx;
+        updateCursorLineHighlight();
         var next = clampGrade(Number(slider.value));
         input.value = fmt(next);
         warn.classList.add('hidden');
@@ -904,10 +1051,11 @@
       });
     });
 
-    // Target input
     var targetInput = document.getElementById('input-target');
     var lineTarget = document.getElementById('line-target');
     targetInput.addEventListener('focus', function () {
+      state.cursorLine = 3;
+      updateCursorLineHighlight();
       setVimMode('INSERT');
       lineTarget.classList.add('focused');
     });
@@ -929,7 +1077,6 @@
       updateResultAndScenarios();
     });
 
-    // Rename form
     document.getElementById('btn-rename').addEventListener('click', startRename);
     document.getElementById('rename-input').addEventListener('focus', function () {
       setVimMode('INSERT');
@@ -940,7 +1087,6 @@
       commitRename();
     });
 
-    // Action buttons
     document.getElementById('btn-example').addEventListener('click', loadExampleGrades);
     document.getElementById('btn-reset').addEventListener('click', resetActiveGrades);
     document.getElementById('btn-copy').addEventListener('click', function () {
@@ -968,6 +1114,7 @@
           var btn = document.getElementById('btn-copy');
           btn.textContent = '✓ Copiado';
           btn.style.color = 'var(--status-ok)';
+          showCommandFeedback('Resumen copiado al portapapeles', false);
           setTimeout(function () {
             btn.textContent = 'Copiar';
             btn.style.color = '';
@@ -976,12 +1123,13 @@
       }
     });
 
-    // Theme & Which-Key triggers
     document.getElementById('btn-open-themes').addEventListener('click', openThemeModal);
     document.getElementById('lualine-theme-cmd').addEventListener('click', openThemeModal);
-    document.getElementById('btn-close-themes').addEventListener('click', closeThemeModal);
+    document.getElementById('btn-close-themes').addEventListener('click', function () {
+      closeThemeModal(true);
+    });
     document.getElementById('theme-modal').addEventListener('click', function (e) {
-      if (e.target === this) closeThemeModal();
+      if (e.target === this) closeThemeModal(true);
     });
 
     document.getElementById('btn-nav-whichkey').addEventListener('click', openWhichKeyModal);
@@ -995,6 +1143,7 @@
       state.themeQuery = e.target.value;
       state.highlightedThemeIdx = 0;
       renderThemeList();
+      previewHighlightedTheme();
     });
 
     document.getElementById('btn-crt-toggle').addEventListener('click', function () {
@@ -1004,18 +1153,31 @@
       this.textContent = 'Efecto CRT retro: ' + (state.scanlines ? 'Activado' : 'Desactivado');
     });
 
+    // Command line events
+    document.getElementById('cmdline-trigger').addEventListener('click', openCmdline);
+    document.getElementById('cmdline-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      executeVimCommand(document.getElementById('cmdline-input').value);
+    });
+    document.getElementById('cmdline-input').addEventListener('blur', function () {
+      setTimeout(function () {
+        if (state.isCmdlineOpen) closeCmdline();
+      }, 120);
+    });
+
     // Keyboard shortcuts
     window.addEventListener('keydown', function (e) {
       if (state.isThemeModalOpen) {
         var filtered = getFilteredThemes();
         if (e.key === 'Escape') {
           e.preventDefault();
-          closeThemeModal();
+          closeThemeModal(true);
         } else if (e.key === 'ArrowDown') {
           e.preventDefault();
           if (filtered.length > 0) {
             state.highlightedThemeIdx = (state.highlightedThemeIdx + 1) % filtered.length;
             renderThemeList();
+            previewHighlightedTheme();
           }
         } else if (e.key === 'ArrowUp') {
           e.preventDefault();
@@ -1023,13 +1185,11 @@
             state.highlightedThemeIdx =
               (state.highlightedThemeIdx - 1 + filtered.length) % filtered.length;
             renderThemeList();
+            previewHighlightedTheme();
           }
         } else if (e.key === 'Enter' && filtered[state.highlightedThemeIdx]) {
           e.preventDefault();
-          state.themeId = filtered[state.highlightedThemeIdx].id;
-          saveState();
-          applyTheme();
-          closeThemeModal();
+          commitTheme(filtered[state.highlightedThemeIdx].id);
         }
         return;
       }
@@ -1048,13 +1208,32 @@
 
       if (e.key === 'Escape' && isInput) {
         activeEl.blur();
+        if (state.isCmdlineOpen) closeCmdline();
         setVimMode('NORMAL');
         return;
       }
 
       if (isInput) return;
 
-      if (e.key === '1' || e.key === '2' || e.key === '3') {
+      if (e.key === ':') {
+        e.preventDefault();
+        openCmdline();
+      } else if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        state.cursorLine = (state.cursorLine + 1) % LINE_KEYS.length;
+        updateCursorLineHighlight();
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        state.cursorLine = (state.cursorLine - 1 + LINE_KEYS.length) % LINE_KEYS.length;
+        updateCursorLineHighlight();
+      } else if (e.key === 'i' || e.key === 'Enter') {
+        e.preventDefault();
+        var targetField = document.getElementById('input-' + LINE_KEYS[state.cursorLine]);
+        if (targetField) {
+          targetField.focus();
+          targetField.select();
+        }
+      } else if (e.key === '1' || e.key === '2' || e.key === '3') {
         e.preventDefault();
         var el = document.getElementById('input-pd' + e.key);
         if (el) {

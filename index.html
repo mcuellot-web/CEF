@@ -281,13 +281,22 @@
                 </div>
               </div>
 
-              <div class="progress-wrap">
+              <div class="weight-breakdown">
                 <div class="progress-labels">
-                  <span>Progreso del 60% parcial</span>
-                  <span id="progress-pct">0% obtenido</span>
+                  <span>Desglose visual hacia la meta (sobre 5.00)</span>
+                  <span id="progress-pct">0% parcial</span>
                 </div>
-                <div class="progress-track">
-                  <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                <div class="weight-bar-track" aria-label="Barra segmentada de aportes pd1, pd2, pd3 y Examen">
+                  <div id="seg-pd1" class="weight-seg" style="width: 0%; background-color: var(--cyan)"></div>
+                  <div id="seg-pd2" class="weight-seg" style="width: 0%; background-color: var(--secondary)"></div>
+                  <div id="seg-pd3" class="weight-seg" style="width: 0%; background-color: var(--accent)"></div>
+                  <div id="seg-exam" class="weight-seg" style="width: 0%; background-color: var(--status-warn)"></div>
+                </div>
+                <div class="weight-legend">
+                  <span class="weight-legend-item"><span class="weight-swatch" style="background: var(--cyan)"></span><span id="leg-pd1">pd1: 0.00</span></span>
+                  <span class="weight-legend-item"><span class="weight-swatch" style="background: var(--secondary)"></span><span id="leg-pd2">pd2: 0.00</span></span>
+                  <span class="weight-legend-item"><span class="weight-swatch" style="background: var(--accent)"></span><span id="leg-pd3">pd3: 0.00</span></span>
+                  <span class="weight-legend-item"><span class="weight-swatch" style="background: var(--status-warn)"></span><span id="leg-exam">Examen: 0.00</span></span>
                 </div>
               </div>
             </div>
@@ -306,6 +315,24 @@
             <button type="button" id="lualine-theme-cmd" class="lualine-btn" style="color: var(--cyan)">:colorscheme tokyonight-storm</button>
             <button type="button" id="lualine-whichkey" class="lualine-btn" style="color: var(--text-muted)">Atajos (?)</button>
           </div>
+        </div>
+
+        <!-- Interactive Vim Command Line (:) -->
+        <div class="cmdline-bar">
+          <button type="button" id="cmdline-trigger" class="cmdline-trigger">
+            Presiona <span style="color: var(--accent)">:</span> para ejecutar comandos (ej: :colorscheme gruvbox, :meta 3.5, :new Fisica, :crt)
+          </button>
+          <form id="cmdline-form" class="cmdline-form hidden">
+            <span style="color: var(--accent); font-weight: 700">:</span>
+            <input
+              id="cmdline-input"
+              type="text"
+              class="cmdline-input"
+              placeholder="colorscheme gruvbox | meta 3.5 | new Calculo | crt | clear | help"
+              aria-label="Línea de comandos estilo Vim"
+            />
+          </form>
+          <span id="cmdline-feedback" class="cmdline-feedback hidden"></span>
         </div>
       </section>
 
@@ -364,7 +391,7 @@
 
         <div class="modal-footer">
           <button type="button" id="btn-crt-toggle" class="btn-secondary">Efecto CRT retro: Desactivado</button>
-          <span>↑/↓ navegar · Enter aplicar · Esc cerrar</span>
+          <span>↑/↓ previsualizar · Enter aplicar · Esc cancelar</span>
         </div>
       </div>
     </div>
@@ -379,11 +406,23 @@
 
         <div>
           <div class="shortcut-row">
-            <span>Enfocar campo de nota pd1, pd2 o pd3 (en modo NORMAL)</span>
+            <span>Mover cursor entre líneas (pd1, pd2, pd3, meta)</span>
+            <kbd class="kbd-chip">j / k</kbd>
+          </div>
+          <div class="shortcut-row">
+            <span>Editar línea seleccionada en modo INSERT</span>
+            <kbd class="kbd-chip">i / Enter</kbd>
+          </div>
+          <div class="shortcut-row">
+            <span>Saltar directo a pd1, pd2 o pd3</span>
             <kbd class="kbd-chip">1 / 2 / 3</kbd>
           </div>
           <div class="shortcut-row">
-            <span>Abrir selector de temas Telescope (:colorscheme)</span>
+            <span>Abrir línea de comandos Vim (:colorscheme, :meta, :new)</span>
+            <kbd class="kbd-chip">:</kbd>
+          </div>
+          <div class="shortcut-row">
+            <span>Abrir selector de temas Telescope con vista previa</span>
             <kbd class="kbd-chip">t</kbd>
           </div>
           <div class="shortcut-row">
